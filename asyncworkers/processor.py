@@ -29,7 +29,7 @@ class BaseProcessor:
         except KeyboardInterrupt as e:
             self.loop.run_until_complete(self.shutdown('KeyboardInterrupt'))
         except SystemExit:
-            self.logger.info('exit.')
+            self.logger.info('%s: exit', self)
         finally:
             self.logger.debug('%s: close loop...', self)
             self.loop.close()

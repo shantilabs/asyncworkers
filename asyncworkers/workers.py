@@ -32,7 +32,7 @@ class BaseWorker:
         return self.__class__.__qualname__
 
     async def run(self):
-        self.logger.debug('%s: run', self)
+        self.logger.debug('%s: run: %s', self, id(asyncio.Task.current_task()))
         while True:
             await self._wait_for_pack()
 
@@ -56,9 +56,10 @@ class LocalWorker(BaseWorker):
         if pack:
             start_processing = time.time()
             await self.on_pack(pack)
-            await self.profile(str(self), time.time() - start_processing)
+            time_ms = int(1000 * (time.time() - start_processing))
+            await self.profile(str(self), time_ms)
 
-    async def put(self, pack: BaseWorker.Pack):
+    async def put(self, pack):
         pack.start = time.time()
         await self._inbox.put(pack)
 
@@ -82,8 +83,8 @@ class RemoteWorker(BaseWorker):
             pack.start = start
             start_processing = time.time()
             await self.on_pack(pack)
-            await self.profile(str(self), time.time() - start_processing)
-
+            time_ms = int(1000 * (time.time() - start_processing))
+            await self.profile(str(self), time_ms)
 
     @classmethod
     async def put(cls, redis, packs, timeout=None):
