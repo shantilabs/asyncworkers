@@ -1,8 +1,5 @@
 from distutils.core import setup
 
-from pip.req import parse_requirements
-
-
 setup(
     name='asyncworkers',
     version='1.1',
@@ -12,5 +9,7 @@ setup(
         'asyncworkers',
     ],
     url='https://github.com/shantilabs/asyncworkers',
-    install_requires=parse_requirements('requirements.txt')
+    install_requires=[
+        'aioredis>=1.1.0',
+    ],
 )
