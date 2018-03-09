@@ -23,7 +23,7 @@ class BaseProcessor:
 
     def start(self):
         self.logger.debug('%s: started', self)
-        self.loop.run_until_complete(self.setup())
+        self.loop.run_until_complete(self._strict(self.setup()))
         try:
             self.loop.run_forever()
         except KeyboardInterrupt as e:
@@ -53,7 +53,7 @@ class BaseProcessor:
             **extra,
         )
         for i in range(n):
-            self.loop.create_task(self._fail_wrapper(worker.run()))
+            self.loop.create_task(self._strict(worker.run()))
         return worker
 
     def add_server(self, coro):
@@ -72,7 +72,7 @@ class BaseProcessor:
         else:
             self.logger.warning('%s: incorrect worker: %s', self, worker_or_class)  # noqa
             raise ValueError(worker_or_class)
-        self.loop.create_task(self._fail_wrapper(coro))
+        self.loop.create_task(self._strict(coro))
 
     async def _remote_touch_every(self, remote_worker_class, seconds):
         while True:
@@ -87,7 +87,7 @@ class BaseProcessor:
             self.logger.debug('%s: touch: %s', self, local_worker)
             await local_worker.put(local_worker.Pack())
 
-    async def _fail_wrapper(self, coro):
+    async def _strict(self, coro):
         try:
             return await coro
         except asyncio.CancelledError:
