@@ -27,38 +27,12 @@ class BaseProcessor:
         try:
             self.loop.run_forever()
         except KeyboardInterrupt as e:
-            self.loop.run_until_complete(self.shutdown('KeyboardInterrupt'))
+            self.loop.run_until_complete(self._shutdown('KeyboardInterrupt'))
         except SystemExit:
             self.logger.info('%s: exit', self)
         finally:
             self.logger.debug('%s: close loop...', self)
             self.loop.close()
-
-    async def on_fail(self, exc):
-        self.logger.warning('%s: on_fail: %s', self, format_exc())
-
-    async def shutdown(self, reason):
-        if self._sutting_down:
-            return
-        self._sutting_down = True
-        self.logger.info('%s: shutdown because %s', self, reason)
-
-        current_task = asyncio.tasks.Task.current_task()
-        for task in asyncio.Task.all_tasks():
-            if task is current_task:
-                continue
-            task.cancel()
-            res = await task
-            self.logger.debug('%s: cancel task: %s: %r', self, task, res)
-
-        for server in self._servers:
-            self.logger.debug('%s: close server: %s', self, server)
-            server.close()
-            await server.wait_closed()
-
-        await self.teardown()
-
-        raise SystemExit()
 
     async def setup(self):
         self.logger.debug('%s: setup...', self)
@@ -67,6 +41,9 @@ class BaseProcessor:
     async def teardown(self):
         self.logger.debug('%s: teardown...', self)
         await self.redis.close()
+
+    async def on_fail(self, exc):
+        self.logger.warning('%s: on_fail: %s', self, format_exc())
 
     def new_worker(self, worker_class, n=1, **extra):
         worker = worker_class(
@@ -120,5 +97,26 @@ class BaseProcessor:
         except Exception as exc:
             await self.on_fail(exc)
             message = str(exc) or exc.__class__.__qualname__
-            await self.shutdown('{} failed'.format(coro))
+            await self._shutdown('{} failed'.format(coro))
             return message
+
+    async def _shutdown(self, reason):
+        if self._sutting_down:
+            return
+        self._sutting_down = True
+        self.logger.info('%s: shutdown because %s', self, reason)
+        try:
+            current_task = asyncio.tasks.Task.current_task()
+            for task in asyncio.Task.all_tasks():
+                if task is current_task:
+                    continue
+                task.cancel()
+                res = await task
+                self.logger.debug('%s: cancel task: %s: %r', self, task, res)
+            for server in self._servers:
+                self.logger.debug('%s: close server: %s', self, server)
+                server.close()
+                await server.wait_closed()
+            await self.teardown()
+        finally:
+            raise SystemExit()

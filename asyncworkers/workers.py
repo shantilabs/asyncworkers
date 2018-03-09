@@ -39,11 +39,11 @@ class BaseWorker:
     async def _wait_for_pack(self):
         raise NotImplementedError()
 
-    async def on_pack(self, pack_or_data):
-        raise NotImplementedError()
+    async def _got_pack(self, pack):
+        await self.on_pack(pack)
 
-    async def profile(self, name, time_ms):
-        self.logger.debug('%s: exec in %d ms', self, time_ms)
+    async def on_pack(self, pack, *args, **kwargs):
+        raise NotImplementedError()
 
 
 class LocalWorker(BaseWorker):
@@ -54,17 +54,11 @@ class LocalWorker(BaseWorker):
     async def _wait_for_pack(self):
         pack = await self._inbox.get()
         if pack:
-            start_processing = time.time()
-            await self.on_pack(pack)
-            time_ms = int(1000 * (time.time() - start_processing))
-            await self.profile(str(self), time_ms)
+            await self._got_pack(pack)
 
     async def put(self, pack):
         pack.start = time.time()
         await self._inbox.put(pack)
-
-    async def on_pack(self, pack):
-        raise NotImplementedError()
 
 
 class RemoteWorker(BaseWorker):
@@ -81,10 +75,7 @@ class RemoteWorker(BaseWorker):
             start = pack_data.pop('start')
             pack = self.Pack(**pack_data)
             pack.start = start
-            start_processing = time.time()
-            await self.on_pack(pack)
-            time_ms = int(1000 * (time.time() - start_processing))
-            await self.profile(str(self), time_ms)
+            await self._got_pack(pack)
 
     @classmethod
     async def put(cls, redis, packs, timeout=None):
@@ -102,9 +93,6 @@ class RemoteWorker(BaseWorker):
             data.append(dict(pack.__dict__, start=time.time()))
         await redis.push_multi(key, data, timeout=timeout)
 
-    async def on_pack(self, pack):
-        raise NotImplementedError()
-
 
 class RemoteNodesWorker(RemoteWorker):
     def __init__(self, server, node_id, **extra):
@@ -120,9 +108,6 @@ class RemoteNodesWorker(RemoteWorker):
         raise ValueError('Use {}.put_to_node()'.format(cls.__name__))
 
     @classmethod
-    async def put_to_node(cls, redis, node_id, packs, timeout=None):
+    async def put_to_node(cls, node_id, redis, packs, timeout=None):
         key = '{}@{}'.format(cls._get_key(), node_id)
         await cls._do_put(redis, key, packs, timeout=timeout)
-
-    async def on_pack(self, pack):
-        raise NotImplementedError()
