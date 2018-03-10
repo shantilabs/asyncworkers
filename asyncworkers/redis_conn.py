@@ -73,6 +73,7 @@ class RedisConn:
 
     async def __aenter__(self):
         await self.open()
+        return self
 
     async def __aexit__(self, exc_type, exc, tb):
         await self.close()
