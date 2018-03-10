@@ -56,7 +56,7 @@ class RedisConn:
         logger.debug('RedisConn.set_expired: %s = %s', name, val)
 
     async def inc_rate(self, name):
-        name = f'{name}_{int(time.time() / 60) * 60}'
+        name = '{}_{}'.format(name, int(time.time() / 60) * 60)
         with await self.pool as conn:
             val = await conn.execute('INCR', name)
             await conn.execute('EXPIRE', name, 61)
