@@ -95,9 +95,9 @@ class RemoteWorker(BaseWorker):
 
 
 class RemoteNodesWorker(RemoteWorker):
-    def __init__(self, server, node_id, **extra):
-        super().__init__(server, **extra)
+    def __init__(self, node_id, *args, **kwargs):
         self.node_id = node_id
+        super().__init__(*args, **kwargs)
 
     async def _wait_for_pack(self):
         key = '{}@{}'.format(self._get_key(), self.node_id)
