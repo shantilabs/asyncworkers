@@ -42,7 +42,7 @@ class BaseWorker:
     async def _got_pack(self, pack):
         await self.on_pack(pack)
 
-    async def on_pack(self, pack, *args, **kwargs):
+    async def on_pack(self, pack):
         raise NotImplementedError()
 
 

@@ -77,9 +77,8 @@ class BaseProcessor:
 
     async def _remote_touch_every(self, remote_worker_class, seconds):
         while True:
-            async with self.get_redis_conn() as redis:
-                self.logger.debug('%s: touch: %s', self, remote_worker_class)
-                await remote_worker_class.put(redis, remote_worker_class.Pack())
+            self.logger.debug('%s: touch: %s', self, remote_worker_class)
+            await remote_worker_class.put(self.redis, remote_worker_class.Pack())  # noqa
             await asyncio.sleep(seconds)
 
     async def _local_touch_every(self, local_worker, seconds):

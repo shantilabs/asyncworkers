@@ -19,6 +19,11 @@ class EchoWorker(LocalWorker):
         print('{}: kuku!'.format(datetime.datetime.now()))
 
 
+class RemoteEchoWorker(RemoteWorker):
+    async def on_pack(self, pack):
+        print('{}: remote kuku!'.format(datetime.datetime.now()))
+
+
 class CrashWorker(LocalWorker):
     async def on_pack(self, pack):
         print('ready?')
@@ -69,7 +74,10 @@ class TestProcessor(BaseProcessor):
 
         self.touch_every(self.new_worker(EchoWorker), seconds=1)
         self.touch_every(self.new_worker(CrashWorker), seconds=30)
+        self.touch_every(RemoteEchoWorker, seconds=1)
+
         self.new_worker(RemoteSumWorker, n=5)
+        self.new_worker(RemoteEchoWorker)
 
         sum_worker = self.new_worker(SumWorker, n=5)
         for i in range(10):
