@@ -11,7 +11,7 @@ class BaseWorker:
             self.__dict__.pop('self', None)
 
         def __repr__(self):
-            return f'Pack(**{self.__dict__})'
+            return 'Pack(**{})'.format(self.__dict__)
 
         def __str__(self):
             return repr(self)
