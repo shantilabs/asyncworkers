@@ -9,17 +9,25 @@ from .workers import LocalWorker, RemoteWorker
 class BaseProcessor:
     logger = logging.getLogger('asyncworkers')
 
+    redis_host = 'localhost'
+    redis_port = 6379
+    redis_db = 0
+
+    pool_size = 50
+
     def __init__(self, loop=None):
         self.loop = loop or asyncio.get_event_loop()
         self._servers = []
-        self.redis = self.get_redis_conn()
+        self.redis = RedisConn(
+            host=self.redis_host,
+            port=self.redis_port,
+            db=self.redis_db,
+            maxsize=self.pool_size,
+        )
         self._sutting_down = False
 
     def __str__(self):
         return self.__class__.__qualname__
-
-    def get_redis_conn(self):
-        return RedisConn()
 
     def start(self):
         self.logger.info('%s: started', self)
@@ -38,6 +46,7 @@ class BaseProcessor:
     async def setup(self):
         self.logger.debug('%s: setup...', self)
         await self.redis.open()
+        self.logger.debug('%s: redis ping: %s', self, await self.redis.ping())
 
     async def teardown(self):
         self.logger.debug('%s: teardown...', self)

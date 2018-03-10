@@ -11,7 +11,7 @@ sys.path.insert(0, '..')
 import datetime
 
 from asyncworkers.processor import BaseProcessor
-from asyncworkers.workers import LocalWorker, RemoteWorker
+from asyncworkers.workers import LocalWorker, RemoteWorker, RemoteNodesWorker
 
 
 class EchoWorker(LocalWorker):
@@ -22,6 +22,17 @@ class EchoWorker(LocalWorker):
 class RemoteEchoWorker(RemoteWorker):
     async def on_pack(self, pack):
         print('{}: remote kuku!'.format(datetime.datetime.now()))
+
+
+class RemoteNodeEchoWorker(RemoteNodesWorker):
+    debug = []
+
+    async def on_pack(self, pack):
+        print('{}: remote kuku from node {}'.format(
+            datetime.datetime.now(),
+            self.node_id,
+        ))
+        self.debug.append(pack)
 
 
 class CrashWorker(LocalWorker):
@@ -72,26 +83,42 @@ class TestProcessor(BaseProcessor):
     async def setup(self):
         await super().setup()
 
-        self.touch_every(self.new_worker(EchoWorker), seconds=1)
-        self.touch_every(self.new_worker(CrashWorker), seconds=30)
-        self.touch_every(RemoteEchoWorker, seconds=1)
-
-        self.new_worker(RemoteSumWorker, n=5)
-        self.new_worker(RemoteEchoWorker)
-
+        # local worker
         sum_worker = self.new_worker(SumWorker, n=5)
         for i in range(10):
             for j in range(10):
                 self.logger.info('%s: PUT: %s %s', self, i, j)
-                await sum_worker.put(sum_worker.Pack(
-                    a=i,
-                    b=j,
-                    delay=random.random(),
-                ))
-                await RemoteSumWorker.put(self.redis, RemoteSumWorker.Pack(
-                    a=i,
-                    b=j,
-                ))
+                pack = sum_worker.Pack(a=i, b=j, delay=random.random())
+                await sum_worker.put(pack)
+
+        # local worker: interval job
+        self.touch_every(self.new_worker(EchoWorker), seconds=1)
+
+        # local worker: interval job with exception (processor fails)
+        self.touch_every(self.new_worker(CrashWorker), seconds=10)
+
+        # remote worke
+        # server A
+        self.new_worker(RemoteSumWorker, n=5)
+        for i in range(10):
+            for j in range(10):
+                pack = RemoteSumWorker.Pack(a=i, b=j)
+                # server B
+                await RemoteSumWorker.put(self.redis, pack)
+
+        # remote worker: interval job
+        self.new_worker(RemoteEchoWorker)  # server A
+        self.touch_every(RemoteEchoWorker, seconds=1)  # server B
+
+        # named remote worker
+        # server A:
+        self.new_worker(RemoteNodeEchoWorker, node_id=1)
+        # server B:
+        self.new_worker(RemoteNodeEchoWorker, node_id='beta')
+        pack = RemoteNodeEchoWorker.Pack()
+        # server C:
+        await RemoteNodeEchoWorker.put_to_node(1, self.redis, pack)
+        await RemoteNodeEchoWorker.put_to_node('beta', self.redis, pack)
 
 
 def test():
@@ -101,7 +128,11 @@ def test():
         format='%(levelname)-8s [%(asctime)s] %(message)s',
     )
     test_processor = TestProcessor()
-    test_processor.start()
+    try:
+        test_processor.start()
+    finally:
+        print('=' * 100)
+        assert len(RemoteNodeEchoWorker.debug) == 2
 
 
 if __name__ == '__main__':

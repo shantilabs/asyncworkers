@@ -34,13 +34,14 @@ class BaseWorker:
     async def run(self):
         self.logger.debug('%s: run: %s', self, id(asyncio.Task.current_task()))
         while True:
-            await self._wait_for_pack()
+            result = await self._wait_for_pack()
+            self.logger.debug('%s: result: %s', self, result)
 
-    async def _wait_for_pack(self):
+    async def _wait_for_pack(self, **kwargs):
         raise NotImplementedError()
 
-    async def _got_pack(self, pack):
-        await self.on_pack(pack)
+    async def _got_pack(self, pack, **kwargs):
+        return await self.on_pack(pack)
 
     async def on_pack(self, pack):
         raise NotImplementedError()
@@ -51,10 +52,10 @@ class LocalWorker(BaseWorker):
         super().__init__(*args, **kwargs)
         self._inbox = asyncio.Queue(loop=self.loop)
 
-    async def _wait_for_pack(self):
+    async def _wait_for_pack(self, **kwargs):
         pack = await self._inbox.get()
         if pack:
-            await self._got_pack(pack)
+            return await self._got_pack(pack, **kwargs)
 
     async def put(self, pack):
         pack.start = time.time()
@@ -66,16 +67,16 @@ class RemoteWorker(BaseWorker):
     def _get_key(cls):
         return cls.__qualname__
 
-    async def _wait_for_pack(self):
-        await self._do_wait_for_pack(self._get_key())
+    async def _wait_for_pack(self, **kwargs):
+        return await self._do_wait_for_pack(self._get_key(), **kwargs)
 
-    async def _do_wait_for_pack(self, key):
+    async def _do_wait_for_pack(self, key, **kwargs):
         pack_data = await self.redis.pop(key)
         if pack_data:
             start = pack_data.pop('start')
             pack = self.Pack(**pack_data)
             pack.start = start
-            await self._got_pack(pack)
+            return await self._got_pack(pack, **kwargs)
 
     @classmethod
     async def put(cls, redis, packs, timeout=None):
@@ -99,9 +100,9 @@ class RemoteNodesWorker(RemoteWorker):
         self.node_id = node_id
         super().__init__(*args, **kwargs)
 
-    async def _wait_for_pack(self):
+    async def _wait_for_pack(self, **kwargs):
         key = '{}@{}'.format(self._get_key(), self.node_id)
-        await self._do_wait_for_pack(key)
+        return await self._do_wait_for_pack(key, **kwargs)
 
     @classmethod
     async def put(cls, redis, packs, timeout=None):
