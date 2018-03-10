@@ -60,7 +60,7 @@ class BaseProcessor:
             loop=self.loop,
             logger=self.logger,
             redis=self.redis,
-            **extra,
+            **extra
         )
         for i in range(n):
             self.loop.create_task(self._strict(worker.run()))

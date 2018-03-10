@@ -21,7 +21,7 @@ class BaseWorker:
         logger,
         redis,
         loop=None,
-        **extra,
+        **extra
     ):
         self.logger = logger
         self.redis = redis
