@@ -16,7 +16,7 @@ class DbMixin:
             async with self.db_pool.acquire() as db_conn:
                 orm = LeoORM(db_conn)
                 while True:
-                    await self._wait_for_pack(orm)
+                    await self._wait_for_pack(orm=orm)
         else:
             while True:
                 await self._wait_for_pack()
