@@ -57,9 +57,9 @@ class BaseProcessor:
             self.loop.create_task(self._strict(worker.run()))
         return worker
 
-    def add_server(self, coro):
+    async def add_server(self, coro):
         if coro is not None:
-            self._servers.append(self.loop.run_until_complete(coro))
+            self._servers.append(await coro)
 
     def touch_every(self, worker_or_class, *, seconds):
         if isinstance(worker_or_class, LocalWorker):
