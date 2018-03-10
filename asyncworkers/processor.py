@@ -22,16 +22,17 @@ class BaseProcessor:
         return RedisConn()
 
     def start(self):
-        self.logger.debug('%s: started', self)
-        self.loop.run_until_complete(self._strict(self.setup()))
+        self.logger.info('%s: started', self)
         try:
+            self.loop.run_until_complete(self._strict(self.setup()))
+            assert self.redis.pool
             self.loop.run_forever()
         except KeyboardInterrupt as e:
             self.loop.run_until_complete(self._shutdown('KeyboardInterrupt'))
         except SystemExit:
-            self.logger.info('%s: exit', self)
+            self.logger.info('%s: system exit', self)
         finally:
-            self.logger.debug('%s: close loop...', self)
+            self.logger.debug('%s: close loop', self)
             self.loop.close()
 
     async def setup(self):
@@ -102,9 +103,10 @@ class BaseProcessor:
 
     async def _shutdown(self, reason):
         if self._sutting_down:
+            self.logger.info('%s: shutdown: already starts', self)
             return
         self._sutting_down = True
-        self.logger.info('%s: shutdown because %s', self, reason)
+        self.logger.info('%s: shutdown: because %s', self, reason)
         try:
             current_task = asyncio.tasks.Task.current_task()
             for task in asyncio.Task.all_tasks():
@@ -112,11 +114,13 @@ class BaseProcessor:
                     continue
                 task.cancel()
                 res = await task
-                self.logger.debug('%s: cancel task: %s: %r', self, task, res)
+                self.logger.debug('%s: shutdown: cancel: %s: %r', self, task, res)  # noqa
             for server in self._servers:
-                self.logger.debug('%s: close server: %s', self, server)
+                self.logger.debug('%s: shutdown: close server: %s', self, server)  # noqas
                 server.close()
                 await server.wait_closed()
             await self.teardown()
+        except Exception as e:
+            self.logger.warning('%s: shutdown error: %s', self, e)
         finally:
             raise SystemExit()
