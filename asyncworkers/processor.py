@@ -106,7 +106,7 @@ class BaseProcessor:
         except Exception as exc:
             await self.on_fail(exc)
             message = str(exc) or exc.__class__.__qualname__
-            await self._shutdown('{} failed'.format(coro))
+            self.loop.create_task(self._shutdown('{} failed'.format(coro)))
             return message
 
     async def _shutdown(self, reason):
@@ -116,6 +116,10 @@ class BaseProcessor:
         self._sutting_down = True
         self.logger.info('%s: shutdown: because %s', self, reason)
         try:
+            for server in self._servers:
+                self.logger.debug('%s: shutdown: close server: %s', self, server)  # noqas
+                server.close()
+                await server.wait_closed()
             current_task = asyncio.tasks.Task.current_task()
             for task in asyncio.Task.all_tasks():
                 if task is current_task:
@@ -123,10 +127,6 @@ class BaseProcessor:
                 task.cancel()
                 res = await task
                 self.logger.debug('%s: shutdown: cancel: %s: %r', self, task, res)  # noqa
-            for server in self._servers:
-                self.logger.debug('%s: shutdown: close server: %s', self, server)  # noqas
-                server.close()
-                await server.wait_closed()
             await self.teardown()
         except Exception as e:
             self.logger.warning('%s: shutdown error: %s', self, e)
