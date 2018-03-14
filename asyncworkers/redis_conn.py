@@ -40,7 +40,10 @@ class RedisConn:
 
     async def pop(self, name):
         with await self.pool as conn:
-            val = await conn.execute('BLPOP', name, 0)
+            try:
+                val = await conn.execute('BLPOP', name, 0)
+            except RuntimeError:
+                return None
         return json.loads(val[1]) if val else None
 
     async def len(self, name):
