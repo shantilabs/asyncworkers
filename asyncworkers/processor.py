@@ -84,6 +84,9 @@ class BaseProcessor:
             raise ValueError(worker_or_class)
         self.loop.create_task(self._strict(coro))
 
+    def die(self, reason):
+        self.loop.create_task(self._shutdown(reason))
+
     async def _remote_touch_every(self, remote_worker_class, seconds):
         while True:
             self.logger.debug('%s: touch: %s', self, remote_worker_class)
@@ -106,7 +109,7 @@ class BaseProcessor:
         except Exception as exc:
             await self.on_fail(exc)
             message = str(exc) or exc.__class__.__qualname__
-            self.loop.create_task(self._shutdown('{} failed'.format(coro)))
+            self.die('{} failed: {}'.format(coro, message))
             return message
 
     async def _shutdown(self, reason):
