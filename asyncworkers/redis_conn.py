@@ -21,6 +21,12 @@ class RedisConn:
         self.port = port
         self.maxsize = maxsize
 
+    def dumps(self, val):
+        return json.dumps(val)
+
+    def loads(self, val):
+        return json.loads(val)
+
     async def ping(self):
         with await self.pool as conn:
             res = await conn.execute('PING')
@@ -30,7 +36,7 @@ class RedisConn:
     async def push_multi(self, name, data: list, timeout=None):
         if not data:
             raise ValueError('empty data')
-        vals = [json.dumps(x) for x in data]
+        vals = [self.dumps(x) for x in data]
         logger.debug('RedisConn.push_multi: %s', name)
         with await self.pool as conn:
             res = await conn.execute('RPUSH', name, *vals)
@@ -44,7 +50,7 @@ class RedisConn:
                 val = await conn.execute('BLPOP', name, 0)
             except RuntimeError:
                 return None
-        return json.loads(val[1]) if val else None
+        return self.loads(val[1]) if val else None
 
     async def len(self, name):
         with await self.pool as conn:
@@ -53,7 +59,7 @@ class RedisConn:
         return int(val)
 
     async def set_expired(self, name, val, timeout):
-        val = json.dumps(val)
+        val = self.dumps(val)
         with await self.pool as conn:
             await conn.execute('SETEX', name, int(timeout), val)
         logger.debug('RedisConn.set_expired: %s = %s', name, val)
@@ -71,7 +77,7 @@ class RedisConn:
             val = await conn.execute('GET', name)
         logger.debug('RedisConn.get: %s', name)
         if val:
-            val = json.loads(val.decode())
+            val = self.loads(val)
         return val
 
     async def __aenter__(self):
