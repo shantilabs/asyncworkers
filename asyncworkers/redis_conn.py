@@ -64,14 +64,6 @@ class RedisConn:
             await conn.execute('SETEX', name, int(timeout), val)
         logger.debug('RedisConn.set_expired: %s = %s', name, val)
 
-    async def inc_rate(self, name):
-        name = '{}_{}'.format(name, int(time.time() / 60) * 60)
-        with await self.pool as conn:
-            val = await conn.execute('INCR', name)
-            await conn.execute('EXPIRE', name, 61)
-        logger.debug('RedisConn.inc_rate: %s = %s', name, val)
-        return val or 0
-
     async def get(self, name):
         with await self.pool as conn:
             val = await conn.execute('GET', name)
