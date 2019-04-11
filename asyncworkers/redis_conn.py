@@ -13,12 +13,14 @@ class RedisConn:
         host='localhost',
         db=0,
         port=6379,
+        password=None,
         maxsize=100,
     ):
         self.pool = None
         self.host = host
         self.db = db
         self.port = port
+        self.password = password
         self.maxsize = maxsize
 
     def dumps(self, val):
@@ -39,7 +41,7 @@ class RedisConn:
         vals = [self.dumps(x) for x in data]
         logger.debug('RedisConn.push_multi: %s', name)
         with await self.pool as conn:
-            res = await conn.execute('RPUSH', name, *vals)
+            await conn.execute('RPUSH', name, *vals)
             if timeout is not None:  # TODO: test it
                 logger.debug('RedisConn.expire: %s', name)
                 await conn.execute('EXPIRE', name, timeout)
@@ -84,6 +86,7 @@ class RedisConn:
             (self.host, self.port),
             db=self.db,
             maxsize=self.maxsize,
+            password=self.password,
         )
 
     async def close(self):

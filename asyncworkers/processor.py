@@ -12,6 +12,7 @@ class BaseProcessor:
     redis_host = 'localhost'
     redis_port = 6379
     redis_db = 0
+    redis_password = None
 
     pool_size = 50
 
@@ -22,6 +23,7 @@ class BaseProcessor:
             host=self.redis_host,
             port=self.redis_port,
             db=self.redis_db,
+            password=self.redis_password,
             maxsize=self.pool_size,
         )
         self._sutting_down = False
