@@ -13,8 +13,7 @@ class BaseProcessor:
     redis_port = 6379
     redis_db = 0
     redis_password = None
-
-    pool_size = 50
+    redis_pool_size = 50
 
     def __init__(self, loop=None):
         self.loop = loop or asyncio.get_event_loop()
@@ -24,7 +23,7 @@ class BaseProcessor:
             port=self.redis_port,
             db=self.redis_db,
             password=self.redis_password,
-            maxsize=self.pool_size,
+            maxsize=self.redis_pool_size,
         )
         self._sutting_down = False
 
@@ -37,7 +36,7 @@ class BaseProcessor:
             self.loop.run_until_complete(self._strict(self.setup()))
             assert self.redis.pool
             self.loop.run_forever()
-        except KeyboardInterrupt as e:
+        except KeyboardInterrupt:
             self.loop.run_until_complete(self._shutdown('KeyboardInterrupt'))
         except SystemExit:
             self.logger.info('%s: system exit', self)
@@ -64,7 +63,7 @@ class BaseProcessor:
             redis=self.redis,
             **extra
         )
-        for i in range(n):
+        for _ in range(n):
             self.loop.create_task(self._strict(worker.run()))
         return worker
 
